@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -31,14 +31,18 @@ jobs:
           mkdir project
           unzip -q SalesCollectionManager_Android_Project_v4.zip -d project
 
-      - name: Fix Java Kotlin compatibility
-        run: |
-          find project -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -print0 | xargs -0 sed -i 's/VERSION_1_8/VERSION_17/g; s/jvmTarget = "1.8"/jvmTarget = "17"/g; s/jvmTarget = '\''1.8'\''/jvmTarget = '\''17'\''/g'
-
       - name: Build APK
         run: |
+          cat > /tmp/force-java17.gradle <<'EOF'
+          allprojects {
+              tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+                  sourceCompatibility = '17'
+                  targetCompatibility = '17'
+              }
+          }
+          EOF
           cd "$(dirname "$(find project -name settings.gradle -o -name settings.gradle.kts | head -1)")"
-          gradle assembleDebug
+          gradle -I /tmp/force-java17.gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
